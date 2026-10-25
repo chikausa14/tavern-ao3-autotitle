@@ -1,0 +1,10 @@
+{
+  "display_name": "AO3 Kai Stickerbook — Automatic Work Title",
+  "loading_order": 101,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "author": "Kai Stickerbook customization",
+  "version": "0.1.0",
+  "homePage": "https://github.com/chikausa14/tavern-ao3-autotitle"
+}
