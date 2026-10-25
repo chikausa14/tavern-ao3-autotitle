@@ -46,6 +46,36 @@
         return { title, user };
     }
 
+
+    // SillyTavern stores tag assignments by character avatar (or group ID),
+    // with IDs resolved via the context's tags catalog.
+    // Some imported V2 cards also carry plain tag names in data.tags.
+    function getCardTags(ctx) {
+        const group = ctx?.groupId != null
+            ? ctx.groups?.find(item => String(item?.id) === String(ctx.groupId))
+            : null;
+        const character = !group && ctx?.characterId != null
+            ? ctx.characters?.[ctx.characterId]
+            : null;
+
+        const key = group ? String(group.id) : character?.avatar;
+        const catalog = Array.isArray(ctx?.tags) ? ctx.tags : [];
+        const lookup = new Map(catalog.map(tag => [String(tag?.id), String(tag?.name ?? '').trim()]));
+        const assigned = key != null && ctx?.tagMap ? ctx.tagMap[key] : null;
+        const assignedNames = Array.isArray(assigned)
+            ? assigned.map(id => lookup.get(String(id))).filter(Boolean)
+            : [];
+        const imported = character?.data?.tags ?? character?.tags;
+        const importedNames = Array.isArray(imported)
+            ? imported.map(tag => typeof tag === 'string' ? tag.trim()
+                : (typeof tag?.name === 'string' ? tag.name.trim() : '')).filter(Boolean)
+            : [];
+        const names = [...new Set([...assignedNames, ...importedNames])]
+            .filter(tag => tag.length > 0)
+            .slice(0, 12);
+        return names.length ? names.join(', ') : null;
+    }
+
     function updateHeader() {
         const chat = document.querySelector(chatSelector);
         const ctx = context();
@@ -53,6 +83,7 @@
         if (!ctx) {
             chat.style.removeProperty('--ao3-title');
             chat.style.removeProperty('--ao3-author');
+            chat.style.removeProperty('--ao3-tags');
             return;
         }
 
@@ -62,6 +93,11 @@
         else chat.style.removeProperty('--ao3-title');
         if (user) chat.style.setProperty('--ao3-author', cssString(user));
         else chat.style.removeProperty('--ao3-author');
+
+        // Never reuse tags from the previously selected chat.
+        const cardTags = getCardTags(ctx);
+        if (cardTags) chat.style.setProperty('--ao3-tags', cssString(cardTags));
+        else chat.style.removeProperty('--ao3-tags');
     }
 
     // Context state changes may occur before the visual chat finishes painting.
@@ -85,6 +121,7 @@
         'CHAT_CHANGED', 'CHAT_CREATED',
         'CHARACTER_EDITED', 'CHARACTER_MESSAGE_RENDERED',
         'PERSONA_CHANGED', 'PERSONA_RENAMED', 'PERSONA_UPDATED',
+        'GROUP_UPDATED', 'SETTINGS_UPDATED',
         'USER_MESSAGE_RENDERED',
     ];
     for (const name of names) {
@@ -94,5 +131,5 @@
         document.addEventListener('DOMContentLoaded', scheduleUpdate, { once: true });
     }
     scheduleUpdate();
-    console.info(`${PREFIX} Ready. Work titles now follow your active character and persona.`);
+    console.info(`${PREFIX} Ready. Work titles, bylines and card tags follow the active chat.`);
 })();
