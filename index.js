@@ -234,6 +234,26 @@
       return;
     }
 
+    // Older themes (v0.3.13 and earlier) must retain their original
+    // in-message metadata card until the matching front-cover CSS is imported.
+    const standalone=getComputedStyle(chat).getPropertyValue('--kai-ao3-cover-mode').trim()==='standalone';
+    if(!standalone){
+      chat.classList.remove('kai-ao3-cover-ready');
+      chat.querySelector(':scope > .kai-ao3-cover')?.remove();
+      for(const old of chat.querySelectorAll('.kai-ao3-work-card'))
+        if(old.parentElement!==target)old.remove();
+      const saved=read(c);
+      const data={
+        rating:saved.rating||'Not Rated',warnings:saved.warnings,category:saved.category,
+        fandom:saved.fandom,relationship:saved.relationship,characters:saved.characters,
+        tags:saved.tags||cardTags(c),summary:saved.summary||SUMMARY
+      };
+      render(target,data,JSON.stringify({key:key(c),data}));
+      chat.classList.add('kai-ao3-enhanced');
+      if(dialog&&dialogKey!==key(c))close();
+      return;
+    }
+
     // Work Details belongs to the chat, not the first AI message.
     // A dedicated sibling *before* the first message avoids the old little
     // message-name line appearing above the book's cover.
