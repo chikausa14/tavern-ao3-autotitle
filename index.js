@@ -227,19 +227,72 @@
     const ready=getComputedStyle(chat).getPropertyValue('--kai-ao3-editor-theme').trim()==='enabled';
     const target=ready?document.querySelector(SEL):null;
     if(!target){
-      chat.classList.remove('kai-ao3-enhanced');
+      chat.classList.remove('kai-ao3-enhanced','kai-ao3-cover-ready');
+      chat.querySelector(':scope > .kai-ao3-cover')?.remove();
       for(const old of chat.querySelectorAll('.kai-ao3-work-card'))old.remove();
+      if(dialog)close();
       return;
     }
-    for(const old of chat.querySelectorAll('.kai-ao3-work-card'))if(old.parentElement!==target)old.remove();
+
+    // Work Details belongs to the chat, not the first AI message.
+    // A dedicated sibling *before* the first message avoids the old little
+    // message-name line appearing above the book's cover.
+    let cover=chat.querySelector(':scope > .kai-ao3-cover');
+    if(!cover){
+      cover=node('section','kai-ao3-cover');
+      cover.setAttribute('aria-label','Work cover and details');
+    }
+    const firstMessage=chat.querySelector(':scope > .mes');
+    if(firstMessage&&cover.nextElementSibling!==firstMessage)chat.insertBefore(cover,firstMessage);
+
+    let portrait=cover.querySelector(':scope > .kai-ao3-cover-photo');
+    let heading=cover.querySelector(':scope > .kai-ao3-front-heading');
+    if(!portrait){
+      portrait=node('div','kai-ao3-cover-photo');
+      const polaroid=node('div','kai-ao3-cover-polaroid');
+      const img=node('img');img.alt='Character cover photo';img.loading='eager';
+      polaroid.append(img);portrait.append(polaroid);
+      cover.prepend(portrait);
+    }
+    if(!heading){
+      heading=node('div','kai-ao3-front-heading');
+      heading.append(
+        node('div','kai-ao3-front-kicker','♡ WORK DETAILS ♡'),
+        node('div','kai-ao3-front-title'),
+        node('div','kai-ao3-front-author')
+      );
+      portrait.after(heading);
+    }
+
+    const group=c.groupId!=null?c.groups?.find(g=>String(g?.id)===String(c.groupId)):null;
+    const ch=!group&&c.characterId!=null?c.characters?.[c.characterId]:null;
+    const title=clean(group?.name||ch?.name||c.name2||'My Story',200)||'My Story';
+    const author=clean(c.name1||'Reader',120)||'Reader';
+    const titleEl=heading.querySelector('.kai-ao3-front-title');
+    const authorEl=heading.querySelector('.kai-ao3-front-author');
+    if(titleEl.textContent!=='✿ '+title+' ✿')titleEl.textContent='✿ '+title+' ✿';
+    if(authorEl.textContent!=='by '+author)authorEl.textContent='by '+author;
+
+    const source=target.closest('.mes')?.querySelector('.mesAvatarWrapper .avatar img');
+    const photo=portrait.querySelector('img');
+    const src=source?.getAttribute('src')||'';
+    if(src){
+      if(photo.getAttribute('src')!==src)photo.setAttribute('src',src);
+      if(portrait.hidden)portrait.hidden=false;
+    }else if(!portrait.hidden){
+      portrait.hidden=true;
+    }
+
+    for(const old of chat.querySelectorAll('.kai-ao3-work-card'))
+      if(old.parentElement!==cover)old.remove();
     const saved=read(c);
     const data={
-      rating:saved.rating||'Not Rated', warnings:saved.warnings,category:saved.category,
+      rating:saved.rating||'Not Rated',warnings:saved.warnings,category:saved.category,
       fandom:saved.fandom,relationship:saved.relationship,characters:saved.characters,
       tags:saved.tags||cardTags(c),summary:saved.summary||SUMMARY
     };
-    render(target,data,JSON.stringify({key:key(c),data}));
-    chat.classList.add('kai-ao3-enhanced');
+    render(cover,data,JSON.stringify({key:key(c),data}));
+    chat.classList.add('kai-ao3-enhanced','kai-ao3-cover-ready');
     if(dialog&&dialogKey!==key(c))close();
   }
   function schedule(){if(!frame)frame=requestAnimationFrame(()=>{frame=0;refresh()})}
