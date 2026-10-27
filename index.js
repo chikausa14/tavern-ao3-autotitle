@@ -312,6 +312,13 @@
       tags:saved.tags||cardTags(c),summary:saved.summary||SUMMARY
     };
     render(cover,data,JSON.stringify({key:key(c),data}));
+    // The metadata renderer prepends its card by default. For our front
+    // cover, reposition it AFTER the photocard and title/byline.
+    // Check before moving to avoid triggering a mutation observer loop.
+    const workCard=cover.querySelector(':scope > .kai-ao3-work-card');
+    if(workCard && heading.nextElementSibling!==workCard) {
+      heading.after(workCard);
+    }
     chat.classList.add('kai-ao3-enhanced','kai-ao3-cover-ready');
     if(dialog&&dialogKey!==key(c))close();
   }
