@@ -1,6 +1,6 @@
 # AO3 ♡ Kai Stickerbook — Auto Title & Work Details
 
-Companion extension for **AO3 ♡ Kai Stickerbook v0.3.14+** on SillyTavern/TauriTavern.
+Companion extension for **AO3 ♡ Kai Stickerbook v0.3.15+** on SillyTavern/TauriTavern.
 
 ## Features
 
@@ -27,7 +27,7 @@ Companion extension for **AO3 ♡ Kai Stickerbook v0.3.14+** on SillyTavern/Taur
 
 ## Compatibility
 
-- Theme v0.3.14+ is required for the edit button; previous themes continue to receive automatic title/persona/tags without the editor panel.
+- Theme v0.3.15+ is required for the edit button; previous themes continue to receive automatic title/persona/tags without the editor panel.
 - Depends on the SillyTavern `window.SillyTavern.getContext()`, event source, and per-chat `chatMetadata` / `saveMetadataDebounced()` APIs.
 - UI behavior has been simulated in Chromium, but needs a real TauriTavern mobile test.
 - A full chat must be selected to save metadata; no save is attempted for a missing chat.
@@ -40,3 +40,4 @@ Companion extension for **AO3 ♡ Kai Stickerbook v0.3.14+** on SillyTavern/Taur
 - v0.2.0: imported/assigned card tags.
 - v0.3.0: optional per-chat metadata editor.
 - v0.4.0: mount the featured Polaroid, dynamic title/byline, and editable work details before chat message #0.
+- v0.4.1: correct front-cover order (Polaroid → title/byline → Fic Details) and support the responsive Strawberry Princess theme v0.3.15.
