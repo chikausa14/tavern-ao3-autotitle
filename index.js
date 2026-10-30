@@ -426,3 +426,142 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});
   else init();
 })();
+
+
+/* ── Kai Strawberry Archive v0.3.17 — free-floating Megumin stamp ──
+ * Megumin's own launcher drags and *snaps* to an edge when released.
+ * Only when the AO3 theme sets --kai-stamp-free-drag: enabled, intercept
+ * its drag-start and use independent free-position handling instead.
+ * Click-to-open remains Megumin's original click handler.
+ */
+(() => {
+  'use strict';
+  if (window.__kaiAo3StampDragInstalled) return;
+  window.__kaiAo3StampDragInstalled = true;
+
+  const BUTTON_ID = 'prompt-slot-fixed-btn';
+  const STORAGE_KEY = 'kaiAo3FreeStampPositionV1';
+  let btn = null;
+  let stored = null;
+  let drag = null;
+  let ignoreMouseUntil = 0;
+  let blockClickUntil = 0;
+
+  try {
+    const value = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (value && Number.isFinite(value.x) && Number.isFinite(value.y)) {
+      stored = { x: Math.max(0, Math.min(1, value.x)), y: Math.max(0, Math.min(1, value.y)) };
+    }
+  } catch (_e) { /* malformed previous position: ignore it */ }
+
+  const active = el => !!el && getComputedStyle(el).getPropertyValue('--kai-stamp-free-drag').trim() === 'enabled';
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const bounds = el => ({
+    maxX: Math.max(0, window.innerWidth - el.getBoundingClientRect().width),
+    minY: 8,
+    maxY: Math.max(8, window.innerHeight - el.getBoundingClientRect().height - 8)
+  });
+
+  function place(x, y) {
+    if (!btn || !active(btn)) return;
+    const b = bounds(btn);
+    const left = clamp(x, 0, b.maxX);
+    const top = clamp(y, b.minY, b.maxY);
+    // Important inline positioning also prevents Megumin's resize snap from
+    // silently restoring left/right edge anchoring.
+    for (const [prop, val] of Object.entries({
+      left: left + 'px', right: 'auto', top: top + 'px', bottom: 'auto'
+    })) {
+      if (btn.style.getPropertyValue(prop) !== val || btn.style.getPropertyPriority(prop) !== 'important') {
+        btn.style.setProperty(prop, val, 'important');
+      }
+    }
+  }
+
+  function restore() {
+    if (!btn || !stored || !active(btn) || drag) return;
+    const b = bounds(btn);
+    place(stored.x * b.maxX, b.minY + stored.y * (b.maxY - b.minY));
+  }
+
+  function point(e) {
+    const touch = e.changedTouches?.[0] || e.touches?.[0];
+    return touch ? { x: touch.clientX, y: touch.clientY } :
+      { x: e.clientX, y: e.clientY };
+  }
+
+  function start(e) {
+    if (!active(btn)) return;
+    // Stop the original Megumin edge-snapping drag from starting, while
+    // leaving its click handler intact for ordinary taps.
+    e.stopImmediatePropagation();
+    const touch = e.type === 'touchstart';
+    if (touch) ignoreMouseUntil = Date.now() + 950;
+    else if (Date.now() < ignoreMouseUntil || e.button !== 0) return;
+    const p = point(e);
+    const r = btn.getBoundingClientRect();
+    drag = {
+      touch, x: p.x, y: p.y, left: r.left, top: r.top, moved: false
+    };
+  }
+
+  function move(e) {
+    if (!drag || !btn || !active(btn)) return;
+    if (drag.touch !== (e.type === 'touchmove')) return;
+    const p = point(e), dx = p.x - drag.x, dy = p.y - drag.y;
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) drag.moved = true;
+    if (!drag.moved) return;
+    if (e.cancelable) e.preventDefault();
+    place(drag.left + dx, drag.top + dy);
+  }
+
+  function end(e) {
+    if (!drag || !btn) return;
+    if (drag.touch !== /^touch/.test(e.type)) return;
+    if (drag.moved) {
+      const r = btn.getBoundingClientRect(), b = bounds(btn);
+      stored = {
+        x: b.maxX ? clamp(r.left / b.maxX, 0, 1) : 0,
+        y: b.maxY > b.minY ? clamp((r.top - b.minY) / (b.maxY - b.minY), 0, 1) : 0
+      };
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stored)); }
+      catch (_e) { /* storage disabled: drag still works this session */ }
+      blockClickUntil = Date.now() + 750;
+    }
+    drag = null;
+  }
+
+  function onClick(e) {
+    if (!active(btn) || Date.now() >= blockClickUntil) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    blockClickUntil = 0;
+  }
+
+  function install() {
+    const next = document.getElementById(BUTTON_ID);
+    if (!next || next === btn) return;
+    btn = next;
+    btn.addEventListener('touchstart', start, { capture: true, passive: true });
+    btn.addEventListener('mousedown', start, { capture: true });
+    btn.addEventListener('click', onClick, { capture: true });
+    restore();
+  }
+
+  document.addEventListener('touchmove', move, { capture: true, passive: false });
+  document.addEventListener('mousemove', move, { capture: true });
+  document.addEventListener('touchend', end, { capture: true });
+  document.addEventListener('touchcancel', end, { capture: true });
+  document.addEventListener('mouseup', end, { capture: true });
+  window.addEventListener('resize', () => requestAnimationFrame(restore));
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', install, { once: true });
+  }
+  install();
+  if (document.body && typeof MutationObserver === 'function') {
+    // Only observe when nodes enter/leave the page, not every text mutation.
+    new MutationObserver(() => {
+      if (!btn?.isConnected || !btn) install();
+    }).observe(document.body, { childList: true, subtree: true });
+  }
+})();
